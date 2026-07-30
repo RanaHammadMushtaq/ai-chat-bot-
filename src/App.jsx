@@ -1,0 +1,209 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+
+const initialMessages = [
+  {
+    id: crypto.randomUUID(),
+    role: 'assistant',
+    content: 'Hello! I can help review a product idea, summarize a document, or brainstorm a polished response. Ask me anything.'
+  }
+]
+
+function App() {
+  const [messages, setMessages] = useState(initialMessages)
+  const [input, setInput] = useState('')
+  const [isStreaming, setIsStreaming] = useState(false)
+  const [isStopRequested, setIsStopRequested] = useState(false)
+  const [error, setError] = useState('')
+  const messagesEndRef = useRef(null)
+  const abortControllerRef = useRef(null)
+  const isPinnedToBottomRef = useRef(true)
+
+  useEffect(() => {
+    if (isPinnedToBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, isStreaming])
+
+  const handleScroll = () => {
+    const container = messagesEndRef.current?.parentElement
+    if (!container) return
+    const isNearBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 24
+    isPinnedToBottomRef.current = isNearBottom
+  }
+
+  const stopStream = () => {
+    abortControllerRef.current?.abort()
+    setIsStopRequested(true)
+    setIsStreaming(false)
+  }
+
+  const sendMessage = async (event) => {
+    event?.preventDefault()
+    if (!input.trim() || isStreaming) return
+
+    const userMessage = { id: crypto.randomUUID(), role: 'user', content: input.trim() }
+    const assistantMessage = { id: crypto.randomUUID(), role: 'assistant', content: '', isPartial: true }
+
+    setMessages((current) => [...current, userMessage, assistantMessage])
+    setInput('')
+    setError('')
+    setIsStreaming(true)
+    setIsStopRequested(false)
+
+    const controller = new AbortController()
+    abortControllerRef.current = controller
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [...messages, userMessage] }),
+        signal: controller.signal
+      })
+
+      if (!response.ok || !response.body) {
+        throw new Error('Unable to start stream')
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let streamedText = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop() || ''
+
+        for (const part of parts) {
+          if (!part.startsWith('data: ')) continue
+          const payload = part.slice(6)
+          if (!payload) continue
+          const parsed = JSON.parse(payload)
+          if (parsed.delta) {
+            streamedText += parsed.delta
+            setMessages((current) => {
+              const updated = [...current]
+              const target = updated[updated.length - 1]
+              if (target?.role === 'assistant') {
+                target.content = streamedText
+                target.isPartial = true
+                target.isError = false
+              }
+              return updated
+            })
+          }
+
+          if (parsed.error) {
+            setError(parsed.error)
+            setMessages((current) => {
+              const updated = [...current]
+              const target = updated[updated.length - 1]
+              if (target?.role === 'assistant') {
+                target.content = parsed.error
+                target.isPartial = false
+                target.isError = true
+              }
+              return updated
+            })
+          }
+        }
+      }
+
+      setMessages((current) => {
+        const updated = [...current]
+        const target = updated[updated.length - 1]
+        if (target?.role === 'assistant') {
+          target.isPartial = false
+        }
+        return updated
+      })
+      setIsStreaming(false)
+      setIsStopRequested(false)
+    } catch (error) {
+      if (error.name === 'AbortError') {
+        setMessages((current) => {
+          const updated = [...current]
+          const target = updated[updated.length - 1]
+          if (target?.role === 'assistant') {
+            target.isPartial = false
+          }
+          return updated
+        })
+      } else {
+        setError('The stream stopped unexpectedly. Please try again.')
+      }
+      setIsStreaming(false)
+      setIsStopRequested(false)
+    }
+  }
+
+  const helperPills = useMemo(() => ['Summarize this idea', 'Give me a polished response', 'Explain the tradeoffs'], [])
+
+  return (
+    <div className="app-shell">
+      <div className="chat-card">
+        <header className="chat-header">
+          <div>
+            <p className="eyebrow">Streaming AI demo</p>
+            <h1>Product review assistant</h1>
+          </div>
+          <div className="status-pill">{isStreaming ? 'Responding…' : 'Ready'}</div>
+        </header>
+
+        <div className="message-list" onScroll={handleScroll}>
+          {messages.map((message) => (
+            <div key={message.id} className={`message-row ${message.role}`}>
+              <div className={`message-bubble ${message.role}`}>
+                {message.role === 'assistant' && message.isPartial && !message.content ? (
+                  <span className="thinking-indicator">Thinking<span /></span>
+                ) : (
+                  <p className={message.isError ? 'error-text' : ''}>{message.content}</p>
+                )}
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </div>
+
+        <div className="quick-actions">
+          {helperPills.map((pill) => (
+            <button key={pill} type="button" onClick={() => setInput(pill)}>
+              {pill}
+            </button>
+          ))}
+        </div>
+
+        {error ? <p className="error-text">{error}</p> : null}
+
+        <form className="composer" onSubmit={sendMessage}>
+          <textarea
+            rows={2}
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            placeholder="Ask for a summary, feedback, or a rewrite..."
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault()
+                sendMessage(event)
+              }
+            }}
+          />
+          <div className="composer-actions">
+            {isStreaming ? (
+              <button type="button" className="secondary" onClick={stopStream}>
+                Stop
+              </button>
+            ) : (
+              <button type="submit">Send</button>
+            )}
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+export default App
