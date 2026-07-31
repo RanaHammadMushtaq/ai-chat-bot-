@@ -146,9 +146,9 @@ function App() {
     <div className="app-shell">
       <div className="chat-card">
         <header className="chat-header">
-          <div>
-            <p className="eyebrow">Streaming AI demo</p>
-            <h1>Product review assistant</h1>
+          <div className="brand-block">
+            <p className="eyebrow">Rana's AI</p>
+            <h1>AI workspace</h1>
           </div>
           <div className="status-pill">{isStreaming ? 'Responding…' : 'Ready'}</div>
         </header>
@@ -156,7 +156,8 @@ function App() {
         <div className="message-list" onScroll={handleScroll}>
           {messages.map((message) => (
             <div key={message.id} className={`message-row ${message.role}`}>
-              <div className={`message-bubble ${message.role}`}>
+              <div className={`message-bubble ${message.role} ${message.isError ? 'is-error' : ''}`}>
+                <span className="message-author">{message.role === 'assistant' ? "Rana's AI" : 'You'}</span>
                 {message.role === 'assistant' && message.isPartial && !message.content ? (
                   <span className="thinking-indicator">Thinking<span /></span>
                 ) : (
@@ -176,7 +177,7 @@ function App() {
           ))}
         </div>
 
-        {error ? <p className="error-text">{error}</p> : null}
+        {error ? <p className="error-text" role="alert">{error}</p> : null}
 
         <form className="composer" onSubmit={sendMessage}>
           <textarea
@@ -184,6 +185,7 @@ function App() {
             value={input}
             onChange={(event) => setInput(event.target.value)}
             placeholder="Ask for a summary, feedback, or a rewrite..."
+            maxLength={4000}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault()
@@ -192,12 +194,13 @@ function App() {
             }}
           />
           <div className="composer-actions">
+            <span className="character-count">{input.length}/4000</span>
             {isStreaming ? (
               <button type="button" className="secondary" onClick={stopStream}>
                 Stop
               </button>
             ) : (
-              <button type="submit">Send</button>
+              <button type="submit" disabled={!input.trim()}>Send</button>
             )}
           </div>
         </form>
