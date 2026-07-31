@@ -1,9 +1,9 @@
-export function buildOpenAIMessageHistory(messages) {
+export function buildGeminiMessages(messages) {
   return messages
     .filter((message) => message.role === 'user' || message.role === 'assistant')
     .map((message) => ({
-      role: message.role,
-      content: message.content
+      role: message.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: message.content }]
     }))
 }
 
