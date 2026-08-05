@@ -4,7 +4,7 @@ const initialMessages = [
   {
     id: crypto.randomUUID(),
     role: 'assistant',
-    content: 'Hello! I can help review a product idea, summarize a document, or brainstorm a polished response. Ask me anything.'
+    content: 'Hello! I can help summarize your idea clearly and concisely. Share your concept below.'
   }
 ]
 
@@ -140,7 +140,7 @@ function App() {
     }
   }
 
-  const helperPills = useMemo(() => ['Summarize this idea', 'Give me a polished response', 'Explain the tradeoffs'], [])
+  const helperPills = useMemo(() => ['Summarize the idea', 'Rewrite this idea', 'Explain the tradeoffs'], [])
 
   return (
     <div className="app-shell">
@@ -184,7 +184,7 @@ function App() {
             rows={2}
             value={input}
             onChange={(event) => setInput(event.target.value)}
-            placeholder="Ask for a summary, feedback, or a rewrite..."
+            placeholder="Summarize the idea or describe it here..."
             maxLength={4000}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
