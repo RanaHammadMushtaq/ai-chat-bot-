@@ -1,34 +1,10 @@
-import express from 'express'
-import cors from 'cors'
-import dotenv from 'dotenv'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import OpenAI from 'openai'
-import { SYSTEM_PROMPT, MODEL_CONFIG } from './server/aiConfig.js'
-import { buildGeminiHistory, buildOpenAIMessageHistory, getLatestUserPrompt } from './server/chatUtils.js'
-
-dotenv.config()
-
-const app = express()
-app.use(cors())
-app.use(express.json())
+import { MODEL_CONFIG, SYSTEM_PROMPT } from '../../server/aiConfig.js'
+import { buildGeminiHistory, buildOpenAIMessageHistory, getLatestUserPrompt } from '../../server/chatUtils.js'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
-const openai = process.env.OPENAI_API_KEY
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null
-
-const sendErrorEvent = (res, message) => {
-  if (res.writableEnded || res.destroyed) {
-    return
-  }
-
-  try {
-    res.write(`data: ${JSON.stringify({ error: message })}\n\n`)
-    res.end()
-  } catch (error) {
-    console.error('Failed to send SSE error event:', error)
-  }
-}
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null
 
 const getGeminiErrorMessage = (error) => {
   const message = error?.message || ''
@@ -70,7 +46,12 @@ const streamOpenAIResponse = async (messages, res) => {
   }
 }
 
-app.post('/api/chat', async (req, res) => {
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    res.status(405).json({ error: 'Method not allowed' })
+    return
+  }
+
   const { messages = [] } = req.body || {}
   const userPrompt = getLatestUserPrompt(messages)
 
@@ -79,14 +60,15 @@ app.post('/api/chat', async (req, res) => {
     return
   }
 
+  if (!process.env.GEMINI_API_KEY) {
+    res.status(500).json({ error: 'The model is unavailable right now. Please try again shortly.' })
+    return
+  }
+
   res.setHeader('Content-Type', 'text/event-stream')
   res.setHeader('Cache-Control', 'no-cache')
   res.setHeader('Connection', 'keep-alive')
-
-  if (!process.env.GEMINI_API_KEY) {
-    sendErrorEvent(res, 'The model is unavailable right now. Please try again shortly.')
-    return
-  }
+  res.flushHeaders()
 
   try {
     const history = buildGeminiHistory(messages)
@@ -116,12 +98,7 @@ app.post('/api/chat', async (req, res) => {
         console.error('OpenAI fallback failed:', fallbackError)
       }
     }
-    sendErrorEvent(res, getGeminiErrorMessage(error))
+    res.write(`data: ${JSON.stringify({ error: getGeminiErrorMessage(error) })}\n\n`)
+    res.end()
   }
-})
-
-const PORT = process.env.PORT || 3001
-
-app.listen(PORT, () => {
-  console.log(`Streaming chat server running on http://localhost:${PORT}`)
-})
+}
