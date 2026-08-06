@@ -33,4 +33,4 @@ export function buildOpenAIMessageHistory(messages) {
       role: message.role,
       content: message.content.trim()
     }))
-}
+  }

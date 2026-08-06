@@ -75,3 +75,40 @@ button:disabled { cursor: not-allowed; }
   .quick-actions button { white-space: nowrap; }
   .composer { padding: 14px 16px 16px; }
 }
+
+/* Tool state styles */
+.tool-state { padding: 14px; border-radius: 10px; border: 1px solid #e6eef2; background: #ffffff; }
+.tool-state.card { box-shadow: 0 6px 18px rgba(22,33,48,0.06); }
+.tool-state .tool-header { font-weight: 800; margin-bottom: 8px; }
+.tool-state.streaming { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.tool-state .loader { display: inline-flex; gap: 8px; align-items: center; }
+.tool-state .loader span { width: 8px; height: 8px; background: #12a89a; border-radius: 50%; animation: loaderPulse 1s infinite alternate; }
+.tool-state .loader span:nth-child(2) { animation-delay: 120ms }
+.tool-state .loader span:nth-child(3) { animation-delay: 240ms }
+@keyframes loaderPulse { from { transform: translateY(0); opacity: 0.6 } to { transform: translateY(-6px); opacity: 1 } }
+
+.input-card { padding: 10px; border-radius: 8px; background: #fbfdfe; border: 1px solid #eef6f7; }
+.field-row { display: flex; gap: 12px; padding: 6px 0; }
+.field-row dt { font-weight: 700; width: 80px; color: #45606b }
+.field-row dd { margin: 0; color: #24303a }
+
+.result-grid { display: grid; grid-template-columns: 220px 1fr; gap: 14px; align-items: start; }
+.score-card { padding: 14px; border-radius: 8px; display: flex; flex-direction: column; gap: 8px; align-items: start; }
+.score-card.green { border-left: 4px solid #12a89a }
+.score-card.orange { border-left: 4px solid #f59e0b }
+.score-card.red { border-left: 4px solid #ef4444 }
+.score-value { font-weight: 900; font-size: 32px; }
+.score-meta { font-size: 12px; color: #5a6b73 }
+
+.findings-table { width: 100%; border-collapse: collapse; }
+.findings-table th { text-align: left; font-size: 12px; color: #5b6b73; padding: 8px 8px; }
+.findings-table td { padding: 10px 8px; border-top: 1px solid #eef3f6; }
+.findings-table .muted { color: #74818a; font-size: 12px }
+.sev-critical { background: rgba(239,68,68,0.03) }
+.sev-high { background: rgba(245,158,11,0.03) }
+.sev-medium { background: rgba(249,115,22,0.02) }
+.no-findings { color: #5b6b73 }
+
+.output-error { border-left: 4px solid #ef4444 }
+.output-error .actions { margin-top: 12px }
+

@@ -1,6 +1,11 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import InputStreaming from './components/ToolStates/InputStreaming'
+import InputAvailable from './components/ToolStates/InputAvailable'
+import OutputAvailable from './components/ToolStates/OutputAvailable'
+import LoadTestOutput from './components/ToolStates/LoadTestOutput'
+import OutputError from './components/ToolStates/OutputError'
 
 const initialMessages = [
   {
@@ -16,6 +21,7 @@ function App() {
   const [isStreaming, setIsStreaming] = useState(false)
   const [isStopRequested, setIsStopRequested] = useState(false)
   const [error, setError] = useState('')
+  const [toolState, setToolState] = useState(null)
   const messagesEndRef = useRef(null)
   const abortControllerRef = useRef(null)
   const isPinnedToBottomRef = useRef(true)
@@ -84,7 +90,9 @@ function App() {
           const payload = part.slice(6)
           if (!payload) continue
           const parsed = JSON.parse(payload)
-          if (parsed.delta) {
+
+          // Model streaming deltas
+          if (parsed.type === 'model.delta' && parsed.delta) {
             streamedText += parsed.delta
             setMessages((current) => {
               const updated = [...current]
@@ -98,7 +106,24 @@ function App() {
             })
           }
 
-          if (parsed.error) {
+          // Tool lifecycle events
+          if (parsed.type === 'tool.prepare') {
+            setToolState({ stage: 'streaming', tool: parsed.tool, message: parsed.message })
+          }
+
+          if (parsed.type === 'tool.input') {
+            setToolState({ stage: 'input', tool: parsed.tool, input: parsed.input })
+          }
+
+          if (parsed.type === 'tool.output') {
+            setToolState({ stage: 'output', tool: parsed.tool, output: parsed.output })
+          }
+
+          if (parsed.type === 'tool.error') {
+            setToolState({ stage: 'error', tool: parsed.tool, error: parsed.error })
+          }
+
+          if (parsed.type === 'model.error') {
             setError(parsed.error)
             setMessages((current) => {
               const updated = [...current]
@@ -156,6 +181,19 @@ function App() {
         </header>
 
         <div className="message-list" onScroll={handleScroll}>
+          {/* Tool UI slot */}
+          {toolState ? (
+            <div style={{ marginBottom: 12 }}>
+              {toolState.stage === 'streaming' && <InputStreaming tool={toolState.tool} message={toolState.message} />}
+              {toolState.stage === 'input' && <InputAvailable tool={toolState.tool} input={toolState.input} />}
+              {toolState.stage === 'output' && (toolState.tool === 'loadTester' ? (
+                <LoadTestOutput tool={toolState.tool} output={toolState.output} />
+              ) : (
+                <OutputAvailable tool={toolState.tool} output={toolState.output} />
+              ))}
+              {toolState.stage === 'error' && <OutputError tool={toolState.tool} error={toolState.error} onRetry={() => { setToolState(null); }} />}
+            </div>
+          ) : null}
           {messages.map((message) => (
             <div key={message.id} className={`message-row ${message.role}`}>
               <div className={`message-bubble ${message.role} ${message.isError ? 'is-error' : ''}`}>
