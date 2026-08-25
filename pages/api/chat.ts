@@ -74,11 +74,16 @@ const runTool = async (tool: any, input: any, messages: any[], res: any) => {
     writeEvent(res, { type: 'tool.input', tool: tool.name, input: validated })
     const output = await tool.execute(validated)
     writeEvent(res, { type: 'tool.output', tool: tool.name, output })
-    const toolMessage = {
-      role: 'user',
-      content: `The ${tool.name} returned this structured result. Summarize it for the user:\n${JSON.stringify(output)}`
+    const lastUserIndex = [...messages].map((message) => message.role).lastIndexOf('user')
+    const messagesWithToolResult = [...messages]
+    const toolResult = `\n\nStructured ${tool.name} result:\n${JSON.stringify(output)}\n\nSummarize this result for the user.`
+    if (lastUserIndex >= 0 && typeof messagesWithToolResult[lastUserIndex].content === 'string') {
+      messagesWithToolResult[lastUserIndex] = {
+        ...messagesWithToolResult[lastUserIndex],
+        content: `${messagesWithToolResult[lastUserIndex].content}${toolResult}`
+      }
     }
-    await streamModelResponse([...messages, toolMessage], res)
+    await streamModelResponse(messagesWithToolResult, res)
   } catch (error: any) {
     const message = error?.errors
       ? error.errors.map((entry: any) => entry.message).join('; ')

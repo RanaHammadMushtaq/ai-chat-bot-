@@ -70,7 +70,8 @@ function App() {
       })
 
       if (!response.ok || !response.body) {
-        throw new Error('Unable to start stream')
+        const errorPayload = await response.json().catch(() => null)
+        throw new Error(errorPayload?.error || 'Unable to start stream')
       }
 
       const reader = response.body.getReader()
@@ -160,7 +161,7 @@ function App() {
           return updated
         })
       } else {
-        setError('The stream stopped unexpectedly. Please try again.')
+        setError(error.message || 'The stream stopped unexpectedly. Please try again.')
       }
       setIsStreaming(false)
       setIsStopRequested(false)
