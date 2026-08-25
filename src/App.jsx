@@ -78,6 +78,7 @@ function App() {
       const decoder = new TextDecoder()
       let buffer = ''
       let streamedText = ''
+      let receivedEvent = false
 
       while (true) {
         const { done, value } = await reader.read()
@@ -91,6 +92,7 @@ function App() {
           const payload = part.slice(6)
           if (!payload) continue
           const parsed = JSON.parse(payload)
+          receivedEvent = true
 
           // Model streaming deltas
           if (parsed.type === 'model.delta' && parsed.delta) {
@@ -138,6 +140,10 @@ function App() {
             })
           }
         }
+      }
+
+      if (!receivedEvent) {
+        throw new Error('The server returned an empty response. Check the Netlify function logs and GEMINI_API_KEY.')
       }
 
       setMessages((current) => {
