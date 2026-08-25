@@ -10,7 +10,7 @@
     "load:test": "node tools/run_autocannon.cjs"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
+    "@google/genai": "^2.18.0",
     "next": "^14.2.5",
     "openai": "^4.96.0",
     "react": "^18.3.1",
@@ -20,7 +20,7 @@
   "devDependencies": {
     "@types/node": "^20.5.1",
     "@types/react": "19.2.18",
-    "typescript": "^5.6.2",
-    "autocannon": "^7.11.0"
+    "autocannon": "^7.11.0",
+    "typescript": "^5.6.2"
   }
 }

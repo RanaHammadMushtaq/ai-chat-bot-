@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import { GoogleGenAI } from '@google/genai'
 import OpenAI from 'openai'
 import { MODEL_CONFIG, SYSTEM_PROMPT } from '../../server/aiConfig.js'
 import { buildGeminiHistory, buildOpenAIMessageHistory, getLatestUserPrompt } from '../../server/chatUtils.js'
@@ -9,7 +9,9 @@ export const config = { maxDuration: 60 }
 
 const geminiApiKey = process.env.GEMINI_API_KEY?.trim()
 const openaiApiKey = process.env.OPENAI_API_KEY?.trim()
-const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null
+// GoogleGenAI (unlike the deprecated @google/generative-ai) auto-detects GEMINI_API_KEY and
+// GOOGLE_GEMINI_BASE_URL, so it correctly routes through Netlify AI Gateway when those are injected.
+const genAI = geminiApiKey ? new GoogleGenAI({}) : null
 const openai = openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : null
 
 const shouldCallSecurityTool = (prompt: string) => /scan|security|vuln|vulnerability|audit|analyze site|analyze website|score site/i.test(prompt)
@@ -29,14 +31,16 @@ const getGeminiErrorMessage = (error: any) => {
 
 const streamGeminiResponse = async (messages: any[], res: any) => {
   if (!genAI) throw new Error('Gemini is not configured')
-  const model = genAI.getGenerativeModel({
+  const stream = await genAI.models.generateContentStream({
     model: process.env.GEMINI_MODEL?.trim() || MODEL_CONFIG.model,
-    systemInstruction: SYSTEM_PROMPT,
-    generationConfig: MODEL_CONFIG.generationConfig
+    contents: buildGeminiHistory(messages),
+    config: {
+      systemInstruction: SYSTEM_PROMPT,
+      ...MODEL_CONFIG.generationConfig
+    }
   })
-  const result = await model.generateContentStream({ contents: buildGeminiHistory(messages) })
-  for await (const chunk of result.stream) {
-    const delta = chunk.text()
+  for await (const chunk of stream) {
+    const delta = chunk.text
     if (delta) writeEvent(res, { type: 'model.delta', delta })
   }
 }
@@ -108,7 +112,7 @@ export default async function handler(req: any, res: any) {
     return
   }
   if (!genAI && !openai) {
-    res.status(500).json({ error: 'No AI provider is configured. Add GEMINI_API_KEY or OPENAI_API_KEY in Vercel project settings.' })
+    res.status(500).json({ error: 'No AI provider is configured. Enable Netlify AI Gateway, or add GEMINI_API_KEY or OPENAI_API_KEY as environment variables.' })
     return
   }
 
