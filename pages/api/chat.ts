@@ -7,8 +7,10 @@ import { LoadTestTool } from '../../server/tools/loadTestTool'
 
 export const config = { maxDuration: 60 }
 
-const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null
+const geminiApiKey = process.env.GEMINI_API_KEY?.trim()
+const openaiApiKey = process.env.OPENAI_API_KEY?.trim()
+const genAI = geminiApiKey ? new GoogleGenerativeAI(geminiApiKey) : null
+const openai = openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : null
 
 const shouldCallSecurityTool = (prompt: string) => /scan|security|vuln|vulnerability|audit|analyze site|analyze website|score site/i.test(prompt)
 const shouldCallLoadTest = (prompt: string) => /load test|stress test|benchmark|capacity test|loadtest|autocannon|requests per second|rps/i.test(prompt)
@@ -28,7 +30,7 @@ const getGeminiErrorMessage = (error: any) => {
 const streamGeminiResponse = async (messages: any[], res: any) => {
   if (!genAI) throw new Error('Gemini is not configured')
   const model = genAI.getGenerativeModel({
-    model: MODEL_CONFIG.model,
+    model: process.env.GEMINI_MODEL?.trim() || MODEL_CONFIG.model,
     systemInstruction: SYSTEM_PROMPT,
     generationConfig: MODEL_CONFIG.generationConfig
   })
